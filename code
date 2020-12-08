@@ -1,0 +1,186 @@
+# Time Series Model Selection 
+
+Now that we have reviewed part of the theory, about how `acf` and `pacf` functions work, and the basics or AR, MA, ARMA and ARIMA models for time series, let's delve into an example. 
+
+For this presentation, we will use a different dataset. It is a dataset depicting the total number of female births recorded in California, USA during the year of 1959. This is a very basic dataset, with only the date ("dd/mm/yyyy" format), and the number of births. There are 365 records in total. We are still focusing on a simple, univariate, additive time model analysis.
+
+births <- read.csv("https://raw.githubusercontent.com/jbrownlee/Datasets/master/daily-total-female-births.csv")
+
+The first step is always to check whether the dataset is already in the time-series format, or whether we need to make a few adjustments to 'convert' it into a time-series dataset. You can check this by running the code below. It uses the `class` function in `R` and prints out the type of dataset you are dealing with. 
+
+class(births)
+
+Our team has chosen a dataset that is not of time-series class. The next chunk of code below does the needful to adjust the dataset for a time-series analysis. 
+
+# extract the number of births
+number_of_births<-births$Births
+
+# convert time variable to date class (Date is originally a factor)
+births$Date <- as.Date(births$Date)  
+
+We'll then plot the time-series model, and try to identify whether assumptions are satisfied. 
+
+plot(number_of_births ~ births$Date, type = "l", main='Daily total female births in california, 1959', ylab = 'Number of births', xlab = 'Time/Months')
+
+## ASSUMPTIONS!!
+
+As discussed today, to fit a time series model, the most important assumption is that the data should be \textbf{stationary}. Recall from the last presentation that the three conditions for stationarity are:
+
+1. The mean should be constant with respect to time. \newline
+2. The variance should be equal at different time intervals.\newline
+3. The covariance should be equal at different time intervals.\newline
+
+
+#### Condition 1: Constant mean.
+Do you think the mean is constant over time? That is if we draw a line passing through the center, are values along the line constant? Increasing? Decreasing? 
+
+#### Condition 2: Equal variance.
+Think about the distance between the most extreme points and the mean. Does it appear to be constant over time?
+
+#### Condition 3: Equal covariance.
+
+
+Does our time-series look stationary? Would you say strictly stationary? Weakly stationary?
+
+Note that, if we observe/conclude that our time series is stationary, then either an AR, MA or ARMA model would suffice. We would then investigate more with `acf` (autocorrelation function) and `pacf`(partial autocorrelation function) plots to determine which model to use. \newline
+
+However, it might occur that the dataset is not stationary (as the `AirPassengers` dataset during our last presentation). In such a case, we would proceed by using a transformation (as we are used to!), and an ARIMA model would be a better model. 
+
+$$Time \ Series \begin{cases}
+\ Stationary \begin{cases} AR \ Model \rightarrow \ pacf \ function \\
+MA \ Model \rightarrow \ acf \ function \\
+ARMA \ Model \rightarrow \ acf + pacf \ function\\
+\end{cases}\\ 
+\\
+\ Non-Stationary \rightarrow Transformation \begin{cases} ARIMA \ Model \end{cases}\end{cases}$$
+
+For this presentation, we will assume that our time series is stationary. From the above 'flow diagram' we know that our final model is either going to be an `AR`, `MA` or `ARMA` model, which will depend on how our autocorrelation plots look like. 
+
+## Next Step : ACF AND PACF!
+
+Let's first have a quick look at both the `acf` and `pacf` plots. Do you observe any abrupt cutoffs in the graphs? Or do the graphs tail off? What kind of model would be suitable here? (Refer to the above table). 
+
+### 1. Autocorrelation Function- ACF (MA)
+
+b) Note that the dotted blue lines represent noise in our model. Here, our aim is to identify the spikes above noise in the `acf` plot. Those spikes will be significant in determining our final model. Let's list the significant ones.
+
+acf(number_of_births)
+
+Answer: Lag 1, Lag 2, Lag 3, Lag 7, Lag 15, Lag 20, Lag 21
+
+This simply means that if you fit a model, the AR component will be of order AR(q). That is, your final model will contain q parameters, which we will see further below. So, which value of q do we choose? We have 1, 2, 3, 7, 15, 20, 21.
+
+Would we prefer a smaller value of q? Or a larger value? What happens when we take a larger q value- for instance 21? 
+\emph{(Hint: Think about the number of parameters you want in your model)} 
+
+Now, how small should q be? 1 might be a small enough value for q, but we are also aiming for a model with enough variation. This is a could indication to explore several ARMA models. 
+
+
+### 2. Partial autocorrelation Function- PACF (AR)
+
+a) Abrupt cutoffs? Does the graph tail off?
+
+b) From the `pacf` plot, list all lags which you think are significant. 
+
+pacf(number_of_births)
+
+Answer: Lag 1, Lag 6, Lag 21
+
+We end up with the same case as the `acf` plot. Here, we have shortlisted p = 1, 6 or 21.
+
+## Model Selection:
+
+1) We will use the `arima` function in `R` to fit an ARMA model. Recall that the way `arima` works in `R` is:
+$$arima(data, order = c(p,d,q)$$
+
+Note that $p$ comes from the `pacf` function and $q$ from the `acf` function. $d$ is the order of differentiation, which we typically use to transform a non-stationary series. But, here we assumed that the time series is stationary. Hence, $d = 0$. 
+
+2) Below are all the values of $p$ and $q$ we came up with from the `pacf` and `acf` plots above.
+p = 1, 6 or 21,
+q = 1, 2, 3, 7, 15, 20 or 21.
+
+Using these values, and the idea that we do not want to overparameterize our final model, choose values of p and q that seem appropriate to you. Then, fit four different models by uncommenting the code below. Recall that $d=0$ throughout since we are fitting and ARMA model.
+
+# Fit various ARMA models
+
+#model1<-arima(number_of_births, order=c(p,0,q))
+
+#model2<-arima(number_of_births, order=c(p,0,q))
+
+#model3<-arima(number_of_births, order=c(p,0,q))
+
+#model4<-arima(number_of_births, order=c(p,0,q))
+
+
+Now that you have your four candidate models, how do we compare them to figure out which one is better suited? For this example, we will explore two methods:
+1. AIC (Akaike Information Criterion)
+2. RSS (Residual Sum of Squares)
+
+These are two methods we have discussed extensively in class before. We know that smaller the AIC and RSS values indicate better models. We will proceed with the same knowledge that we have from class. 
+
+Go ahead and uncomment the codes to below to see how your chosen models compare. 
+
+#AIC Values (We extract these values from each model using '$'):
+
+#AIC of Model 1:
+#AIC1 <- Model1$aic
+
+#AIC of Model 2:
+#AIC2 <- Model2$aic
+
+#AIC of Model 3:
+#AIC3 <- Model3$aic
+
+#AIC of Model 4:
+#AIC4 <- Model4$aic
+
+
+
+#Residual Sum of Squares for each Model:
+
+#RSS Model 1:
+#RSS1<-sum(model1$residuals^2)
+
+#RSS Model 2:
+#RSS2<-sum(model2$residuals^2)
+
+#RSS Model 3:
+#RSS3<-sum(model3$residuals^2)
+
+#RSS Model 4:
+#RSS4<-sum(model4$residuals^2)
+
+
+#Create a table for better comparison, and for a much cleaner representation
+
+#df<-data.frame(row.names=c('AIC', 'RSS'), c(AIC1, RSS1), 
+#               c(AIC2, RSS2), c(AIC3, RSS3),
+#               c(AIC4, RSS4))
+
+#colnames(df)<-c('Model 1','Model 2', 'Model 3', 'Model 4')
+
+#format(df, scientific=FALSE)
+
+Which model has the lowest AIC? Which model has the lowest RSS value? What do you notice? Are both models the same? Why or why not? Which model would you choose?
+
+It seems like there is a much simpler way to compare several models, and find a good fit without going through this tedious process! Some very kind statisticians came up with a package called `forecast` which contains the `auto.arima()` function. `auto.arima()` is an automatic routine that automates this entire process of comparison for us. 
+
+Try running the code as it is. If it doesn't work, then uncomment the first section and install the package.
+
+install.packages("forecast", repos='http://cran.us.r-project.org')
+auto.arima(number_of_births, d = 0, approximation = FALSE)
+
+From the summary of the fitted ARMA Model (ARIMA(2,0,1)):
+
+##### AR(2): Auto Regressive Part is of order 2 - Indicates that the model will contain two `ar` values. 
+##### MA(1): Moving Average Part is of order 1 - Indicates that the model will contain one `ma` value.
+
+If we just start by writing the AR part:
+
+$$X_t = Z_t + ar_1X_{t-1} +ar_2X_{t-2} + ma_1Z_{t-1} \\
+Z_t \sim N(0, \sigma^2)$$
+
+Total number of female births in period t is a function of the total number of female births in period (t-1) 
+(How total number of female births in a period t is correlated with itself at a period (t-1) or (t-2))
+
+Total number of female births in period t is a function of some ongoing event (any random effect) which has occurred in (t-1).
